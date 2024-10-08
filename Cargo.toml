@@ -10,3 +10,4 @@ ark-std = "0.4.0"
 poseidon-ark = { git = "https://github.com/arnaucube/poseidon-ark" }
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
+ark-serialize = "0.4.2"
