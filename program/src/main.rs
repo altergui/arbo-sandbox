@@ -275,10 +275,5 @@ fn main() {
     // Ensure the last sibling is zero
     siblings.push(Field::zero());
 
-    // let root = to_field("1");
-    // let key = to_field("1");
-    // let value = to_field("1");
-    // let siblings = vec![to_field("0"), to_field("1"), to_field("0")];
-
     verify(&root, &key, &value, siblings);
 }
