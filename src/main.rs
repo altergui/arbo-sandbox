@@ -37,10 +37,9 @@ fn verify_extended(
     let n_levels = siblings.len();
     let hash1_old = end_leaf_value(old_key, old_value);
     let hash1_new = end_leaf_value(key, value);
+    let n2b_new = to_le_bits_254(key);
 
-    let n2b_new: Vec<u8> = to_le_bits_254(key);
-
-    let lev_ins = level_ins(&siblings, enabled == &BigUint::one());
+    let lev_ins = level_ins(&siblings, enabled.is_one());
 
     let mut st_tops = vec![BigUint::zero(); siblings.len()];
     let mut st_iolds = vec![BigUint::zero(); siblings.len()];
@@ -102,7 +101,7 @@ fn verify_extended(
             &siblings[i],
             &hash1_old,
             &hash1_new,
-            n2b_new[i] as u8,
+            n2b_new[i],
             child,
         );
         if i > 0 {
@@ -110,28 +109,31 @@ fn verify_extended(
         }
     }
 
-    let are_key_equals = if old_key == key {
+    println!("Expected root: {:?}", root);
+    println!("Computed root: {:?}", levels[0]);
+    assert!(root == &levels[0]);
+
+    let are_keys_equal = if old_key == key {
         BigUint::one()
     } else {
         BigUint::zero()
     };
     assert!(
-        multi_and(&[fnc, &(BigUint::one() - is_old_0), &are_key_equals, enabled])
+        multi_and(&[fnc, &(BigUint::one() - is_old_0), &are_keys_equal, enabled])
             == BigUint::zero()
     );
-    assert!(root == &levels[0]);
 }
 
 fn level_ins(siblings: &[BigUint], enabled: bool) -> Vec<BigUint> {
     let mut lev_ins = vec![BigUint::zero(); siblings.len()];
     if enabled {
-        assert!(siblings[siblings.len() - 1] == BigUint::zero());
+        assert!(siblings[siblings.len() - 1].is_zero());
     }
 
     let is_zero: Vec<BigUint> = siblings
         .iter()
         .map(|i| {
-            if i == &BigUint::zero() {
+            if i.is_zero() {
                 BigUint::one()
             } else {
                 BigUint::zero()
@@ -140,17 +142,16 @@ fn level_ins(siblings: &[BigUint], enabled: bool) -> Vec<BigUint> {
         .collect();
     let mut is_done = vec![BigUint::zero(); siblings.len()];
 
-    let last = BigUint::one() - is_zero[siblings.len() - 2].clone();
+    let last = BigUint::one() - &is_zero[siblings.len() - 2];
     lev_ins[siblings.len() - 1] = last.clone();
     is_done[siblings.len() - 2] = last.clone();
 
     for n in 2..siblings.len() {
         let i = siblings.len() - n;
-        lev_ins[i] =
-            (BigUint::one() - is_done[i].clone()) * (BigUint::one() - is_zero[i - 1].clone());
-        is_done[i - 1] = lev_ins[i].clone() + is_done[i].clone();
+        lev_ins[i] = (BigUint::one() - &is_done[i]) * (BigUint::one() - &is_zero[i - 1]);
+        is_done[i - 1] = lev_ins[i].clone() + &is_done[i];
     }
-    lev_ins[0] = BigUint::one() - is_done[0].clone();
+    lev_ins[0] = BigUint::one() - &is_done[0];
     lev_ins
 }
 
@@ -197,8 +198,7 @@ fn switcher(sel: u8, l: &BigUint, r: &BigUint) -> (BigUint, BigUint) {
 }
 
 fn multi_and(arr: &[&BigUint]) -> BigUint {
-    arr.iter()
-        .fold(BigUint::one(), |acc, x| acc.bitand(x.clone()))
+    arr.iter().fold(BigUint::one(), |acc, x| acc.bitand(&**x))
 }
 
 fn end_leaf_value(k: &BigUint, v: &BigUint) -> BigUint {
@@ -212,33 +212,38 @@ fn intermediate_leaf_value(l: &BigUint, r: &BigUint) -> BigUint {
 }
 
 fn to_le_bits_254(value: &BigUint) -> Vec<u8> {
-    let mut bits = Vec::new();
-    for i in 0..254 {
-        bits.push(
-            ((value.shr(i as u32)).bitand(BigUint::one()))
+    (0..254)
+        .map(|i| {
+            (value.shr(i as u32).bitand(BigUint::one()))
                 .to_u8()
-                .unwrap_or(0),
-        );
-    }
-    bits
+                .unwrap_or(0)
+        })
+        .collect()
 }
 
 fn main() {
     // Example usage with big integers
-    let root =
-        to_biguint("21135506078746510573119705753579567335835726524098367527812922933644667691006");
-    let key = to_biguint("500400244448261235194511589700085192056257072811");
-    let value = to_biguint("10");
-    let siblings = vec![
-        to_biguint("13175438946403099127785287940793227584022396513432127658229341995655669945927"),
-        to_biguint("8906855681626013805208515602420790146700990181185755277830603493975762067087"),
-        to_biguint("9457781280074316365191154663065840032069867769247887694941521931147573919101"),
-        to_biguint("3886003602968045687040541715852317767887615077999207197223340281752527813105"),
-        to_biguint("5615297718669932502221460377065820025799135258753150375139282337562917282190"),
-        to_biguint("8028805327216345358010190706209509799652032446863364094962139617192615346584"),
-        to_biguint("572541247728029242828004565014369314635015057986897745288271497923406188177"),
-        to_biguint("9738042754594087795123752255236264962836518315799343893748681096434196901468"),
-    ];
+    // let root =
+    //     to_biguint("21135506078746510573119705753579567335835726524098367527812922933644667691006");
+    // let key = to_biguint("500400244448261235194511589700085192056257072811");
+    // let value = to_biguint("10");
+    // let mut siblings = vec![
+    //     to_biguint("13175438946403099127785287940793227584022396513432127658229341995655669945927"),
+    //     to_biguint("8906855681626013805208515602420790146700990181185755277830603493975762067087"),
+    //     to_biguint("9457781280074316365191154663065840032069867769247887694941521931147573919101"),
+    //     to_biguint("3886003602968045687040541715852317767887615077999207197223340281752527813105"),
+    //     to_biguint("5615297718669932502221460377065820025799135258753150375139282337562917282190"),
+    //     to_biguint("8028805327216345358010190706209509799652032446863364094962139617192615346584"),
+    //     to_biguint("572541247728029242828004565014369314635015057986897745288271497923406188177"),
+    //     to_biguint("9738042754594087795123752255236264962836518315799343893748681096434196901468"),
+    // ];
 
+    // // Ensure the last sibling is zero
+    // siblings.push(BigUint::zero());
+
+    let root = to_biguint("1");
+    let key = to_biguint("1");
+    let value = to_biguint("1");
+    let siblings = vec![to_biguint("0"), to_biguint("1"), to_biguint("0")];
     verify(&root, &key, &value, siblings);
 }
