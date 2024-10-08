@@ -1,6 +1,9 @@
+use ark_bn254::Fr as Field; // Use BN254 scalar field
+use ark_ff::PrimeField; // For converting integers to field elements
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use num_traits::{One, Zero};
+use poseidon_ark::Poseidon; // Import Poseidon from the repository
 use std::ops::BitAnd;
 use std::ops::Shr;
 
@@ -201,14 +204,19 @@ fn multi_and(arr: &[&BigUint]) -> BigUint {
     arr.iter().fold(BigUint::one(), |acc, x| acc.bitand(&**x))
 }
 
-fn end_leaf_value(k: &BigUint, v: &BigUint) -> BigUint {
-    // Placeholder for hash function, replace with actual cryptographic hash
-    k ^ v ^ BigUint::one()
+// Poseidon hash function example (ensure correct Poseidon parameters are used)
+fn poseidon_hash(inputs: &[Field]) -> Field {
+    Poseidon::new().hash(inputs.to_vec()).expect("hash failed") // This will hash the input array using Poseidon
 }
 
-fn intermediate_leaf_value(l: &BigUint, r: &BigUint) -> BigUint {
-    // Placeholder for hash function, replace with actual cryptographic hash
-    l ^ r
+// endLeafValue using Poseidon hash
+pub(crate) fn end_leaf_value(k: Field, v: Field) -> Field {
+    poseidon_hash(&[k, v, Field::from(1u64)]) // Hash key, value, and 1
+}
+
+// intermediateLeafValue using Poseidon hash
+pub(crate) fn intermediate_leaf_value(l: Field, r: Field) -> Field {
+    poseidon_hash(&[l, r]) // Hash left and right children
 }
 
 fn to_le_bits_254(value: &BigUint) -> Vec<u8> {
