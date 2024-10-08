@@ -256,6 +256,11 @@ fn to_le_bits_254(value: &Field) -> Vec<u8> {
 }
 
 fn main() {
+    main1();
+    main2();
+}
+
+fn main1() {
     // Example usage with big integers
     let root =
         to_field("21135506078746510573119705753579567335835726524098367527812922933644667691006");
@@ -270,6 +275,25 @@ fn main() {
         to_field("8028805327216345358010190706209509799652032446863364094962139617192615346584"),
         to_field("572541247728029242828004565014369314635015057986897745288271497923406188177"),
         to_field("9738042754594087795123752255236264962836518315799343893748681096434196901468"),
+    ];
+
+    // Ensure the last sibling is zero
+    siblings.push(Field::zero());
+
+    verify(&root, &key, &value, siblings);
+}
+
+fn main2() {
+    // Example usage with big integers
+    let root =
+        to_field("13558168455220559042747853958949063046226645447188878859760119761585093422436");
+    let key = to_field("2");
+    let value = to_field("22");
+    let mut siblings = vec![
+        to_field("11620130507635441932056895853942898236773847390796721536119314875877874016518"),
+        to_field("5158240518874928563648144881543092238925265313977134167935552944620041388700"),
+        to_field("0"),
+        to_field("0"),
     ];
 
     // Ensure the last sibling is zero
