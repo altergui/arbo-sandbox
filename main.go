@@ -46,7 +46,7 @@ func main() {
 		}
 	}
 
-	// proof of existence
+	// proof of existence (fnc = 0: inclusion, 1: non inclusion)
 	k := arbo.BigIntToBytes(bLen, big.NewInt(int64(2)))
 	cvp, err := tree.GenerateCircomVerifierProof(k)
 	if err != nil {
@@ -67,9 +67,15 @@ func main() {
 		`,"0"],"value":"22"}` {
 		panic("")
 	}
+	fmt.Println("root", arbo.BytesToBigInt(cvp.Root))
+	fmt.Println("key", arbo.BytesToBigInt(cvp.Key))
+	fmt.Println("value", arbo.BytesToBigInt(cvp.Value))
+	for _, s := range cvp.Siblings {
+		fmt.Println("siblings", arbo.BytesToBigInt(s))
+	}
 
 	fmt.Println(hex.EncodeToString(jCvp))
-	// proof of non-existence
+	// proof of non-existence (fnc = 0: inclusion, 1: non inclusion)
 	k = arbo.BigIntToBytes(bLen, big.NewInt(int64(5)))
 	cvp, err = tree.GenerateCircomVerifierProof(k)
 	if err != nil {
