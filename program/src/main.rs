@@ -263,8 +263,10 @@ fn to_le_bits_254(value: &Field) -> Vec<u8> {
 }
 
 fn main() {
+    println!("start");
     main1();
-    main2();
+    // main2();
+    println!("done");
 }
 
 fn main1() {
