@@ -1,3 +1,10 @@
+// These two lines are necessary for the program to properly compile.
+//
+// Under the hood, we wrap your main function with some extra code so that it behaves properly
+// inside the zkVM.
+#![no_main]
+sp1_zkvm::entrypoint!(main);
+
 use ark_bn254::Fr as Field; // Use BN254 scalar field
 use ark_ff::{One, PrimeField, Zero}; // For field arithmetic and conversions
 use ark_serialize::CanonicalSerialize; // Import serialization traits
