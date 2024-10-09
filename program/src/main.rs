@@ -8,7 +8,6 @@ sp1_zkvm::entrypoint!(main);
 use ark_bn254::Fr as Field; // Use BN254 scalar field
 use ark_ff::{One, PrimeField, Zero}; // For field arithmetic and conversions
 use ark_serialize::CanonicalSerialize; // Import serialization traits
-use poseidon_ark::Poseidon; // Import Poseidon from the repository
 
 // Helper function to convert a string into a Field element
 fn to_field(val: &str) -> Field {
@@ -199,6 +198,12 @@ fn switcher(sel: u8, l: &Field, r: &Field) -> (Field, Field) {
     }
 }
 
+fn field_to_vec(a: Field) -> Vec<u8> {
+    let mut a_bytes = Vec::new();
+    CanonicalSerialize::serialize_uncompressed(&a, &mut a_bytes).unwrap();
+    a_bytes
+}
+
 // Bitwise AND for Field elements
 fn field_and(a: Field, b: Field) -> Field {
     // Create byte buffers for serialized field elements
@@ -225,19 +230,34 @@ fn multi_and(arr: &[Field]) -> Field {
     arr.iter().cloned().reduce(|a, b| field_and(a, b)).unwrap()
 }
 
-// Poseidon hash function example (ensure correct Poseidon parameters are used)
-fn poseidon_hash(inputs: &[Field]) -> Field {
-    Poseidon::new().hash(inputs.to_vec()).expect("hash failed") // This will hash the input array using Poseidon
+// Blake3 hash function example
+fn blake3_hash(inputs: &[Field]) -> Field {
+    let mut hasher = blake3::Hasher::new();
+
+    hasher.update(&vec_to_fixed_array_32(inputs.to_vec()));
+    let hash = hasher.finalize();
+    Field::from_le_bytes_mod_order(&hash.as_bytes()[..32]) // Use only the first 32 bytes (256 bits)
 }
 
-// endLeafValue using Poseidon hash
+// Convert Vec<u8> to [u8; 32], padding or truncating as needed
+fn vec_to_fixed_array_32(vec: Vec<u8>) -> [u8; 32] {
+    let mut array = [0u8; 32]; // Create a fixed-size array filled with 0s
+
+    // Copy as many bytes as possible from the vector into the array
+    let bytes_to_copy = vec.len().min(32); // Copy up to 32 bytes
+    array[..bytes_to_copy].copy_from_slice(&vec[..bytes_to_copy]);
+
+    array // Return the fixed-size array
+}
+
+// endLeafValue using Blake3 hash
 pub(crate) fn end_leaf_value(k: Field, v: Field) -> Field {
-    poseidon_hash(&[k, v, Field::from(1u64)]) // Hash key, value, and 1
+    blake3_hash(&[k, v, Field::from(1u64)]) // Hash key, value, and 1
 }
 
-// intermediateLeafValue using Poseidon hash
+// intermediateLeafValue using Blake3 hash
 pub(crate) fn intermediate_leaf_value(l: Field, r: Field) -> Field {
-    poseidon_hash(&[l, r]) // Hash left and right children
+    blake3_hash(&[l, r]) // Hash left and right children
 }
 
 // Function to get the least significant 254 bits of a Field element
