@@ -5,15 +5,29 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
+use arbo_lib::MerkleProof;
 use ark_bn254::Fr as Field; // Use BN254 scalar field
 use ark_ff::{One, PrimeField, Zero}; // For field arithmetic and conversions
 use ark_serialize::CanonicalSerialize; // Import serialization traits
 use num_bigint::BigUint;
 
 // Helper function to convert a string into a Field element
-fn to_field(val: &str) -> Field {
+fn string_to_field(val: &str) -> Field {
     let int_val = BigUint::parse_bytes(val.as_bytes(), 10).unwrap(); // Convert string to BigUint
     Field::from_le_bytes_mod_order(&int_val.to_bytes_le()) // Convert BigUint to Field
+}
+
+// Helper function to convert a bigint into a Field element
+fn biguint_to_field(val: BigUint) -> Field {
+    Field::from_le_bytes_mod_order(&val.to_bytes_le()) // Convert BigUint to Field
+}
+// Helper function to convert a bigint into a Field element
+fn vec_biguint_to_field(vals: Vec<BigUint>) -> Vec<Field> {
+    let mut vf = Vec::new();
+    for val in vals {
+        vf.push(Field::from_le_bytes_mod_order(&val.to_bytes_le())) // Convert BigUint to Field
+    }
+    vf
 }
 
 fn verify(expected_root: &Field, key: &Field, value: &Field, siblings: Vec<Field>) {
@@ -279,32 +293,54 @@ fn to_le_bits_254(value: &Field) -> Vec<u8> {
 
 fn main() {
     println!("start");
-    let n = sp1_zkvm::io::read::<u32>();
+    let proof = sp1_zkvm::io::read::<MerkleProof>();
 
-    main1();
-    // main2();
+    verify(
+        &biguint_to_field(proof.root),
+        &biguint_to_field(proof.key),
+        &biguint_to_field(proof.value),
+        vec_biguint_to_field(proof.siblings),
+    );
+
     println!("done");
 }
 
-fn main1() {
+fn _hardcoded_blake3_test1() {
     // Example usage with big integers
     // let root =
     //     to_field("21135506078746510573119705753579567335835726524098367527812922933644667691006"); // this is the resulting hash using Poseidon
 
-    let root =
-        to_field("10768433685903779808492645729755013812360352060157252115590238143087516437857"); // this is the resulting hash using Blake3
+    let root = string_to_field(
+        "10768433685903779808492645729755013812360352060157252115590238143087516437857",
+    ); // this is the resulting hash using Blake3
 
-    let key = to_field("500400244448261235194511589700085192056257072811");
-    let value = to_field("10");
+    let key = string_to_field("500400244448261235194511589700085192056257072811");
+    let value = string_to_field("10");
     let mut siblings = vec![
-        to_field("13175438946403099127785287940793227584022396513432127658229341995655669945927"),
-        to_field("8906855681626013805208515602420790146700990181185755277830603493975762067087"),
-        to_field("9457781280074316365191154663065840032069867769247887694941521931147573919101"),
-        to_field("3886003602968045687040541715852317767887615077999207197223340281752527813105"),
-        to_field("5615297718669932502221460377065820025799135258753150375139282337562917282190"),
-        to_field("8028805327216345358010190706209509799652032446863364094962139617192615346584"),
-        to_field("572541247728029242828004565014369314635015057986897745288271497923406188177"),
-        to_field("9738042754594087795123752255236264962836518315799343893748681096434196901468"),
+        string_to_field(
+            "13175438946403099127785287940793227584022396513432127658229341995655669945927",
+        ),
+        string_to_field(
+            "8906855681626013805208515602420790146700990181185755277830603493975762067087",
+        ),
+        string_to_field(
+            "9457781280074316365191154663065840032069867769247887694941521931147573919101",
+        ),
+        string_to_field(
+            "3886003602968045687040541715852317767887615077999207197223340281752527813105",
+        ),
+        string_to_field(
+            "5615297718669932502221460377065820025799135258753150375139282337562917282190",
+        ),
+        string_to_field(
+            "8028805327216345358010190706209509799652032446863364094962139617192615346584",
+        ),
+        string_to_field(
+            "572541247728029242828004565014369314635015057986897745288271497923406188177",
+        ),
+        string_to_field(
+            "9738042754594087795123752255236264962836518315799343893748681096434196901468",
+        ),
     ];
 
     // Ensure the last sibling is zero
@@ -313,17 +349,22 @@ fn main1() {
     verify(&root, &key, &value, siblings);
 }
 
-fn main2() {
+fn _hardcoded_test2() {
     // Example usage with big integers
-    let root =
-        to_field("13558168455220559042747853958949063046226645447188878859760119761585093422436");
-    let key = to_field("2");
-    let value = to_field("22");
+    let root = string_to_field(
+        "13558168455220559042747853958949063046226645447188878859760119761585093422436",
+    );
+    let key = string_to_field("2");
+    let value = string_to_field("22");
     let mut siblings = vec![
-        to_field("11620130507635441932056895853942898236773847390796721536119314875877874016518"),
-        to_field("5158240518874928563648144881543092238925265313977134167935552944620041388700"),
-        to_field("0"),
-        to_field("0"),
+        string_to_field(
+            "11620130507635441932056895853942898236773847390796721536119314875877874016518",
+        ),
+        string_to_field(
+            "5158240518874928563648144881543092238925265313977134167935552944620041388700",
+        ),
+        string_to_field("0"),
+        string_to_field("0"),
     ];
 
     // Ensure the last sibling is zero

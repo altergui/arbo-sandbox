@@ -20,6 +20,13 @@ sol! {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MerkleProof {
+    pub root: BigUint,
+    pub key: BigUint,
+    pub value: BigUint,
+    pub siblings: Vec<BigUint>,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MerkleProofFromFile {
     #[serde(deserialize_with = "string_to_biguint")]
     pub root: BigUint,
     #[serde(deserialize_with = "string_to_biguint")]

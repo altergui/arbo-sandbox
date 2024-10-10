@@ -265,6 +265,7 @@ dependencies = [
 name = "arbo-sandbox"
 version = "0.1.0"
 dependencies = [
+ "arbo-lib",
  "ark-bn254",
  "ark-ff 0.4.2",
  "ark-serialize 0.4.2",

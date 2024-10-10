@@ -11,12 +11,11 @@
 //! ```
 
 use alloy_sol_types::SolType;
-use arbo_lib::MerkleProof;
+use arbo_lib::{MerkleProof, MerkleProofFromFile};
 use clap::Parser;
 use hex::ToHex;
 use num_bigint::BigUint;
 use ruint::Uint;
-use serde::{Deserialize, Serialize};
 use sp1_sdk::{ProverClient, SP1Stdin};
 use std::time::Instant;
 use std::{fs::File, io::BufReader, io::Write};
@@ -46,8 +45,15 @@ fn read_merkleproof_from_file(path: &str) -> Result<MerkleProof, serde_json::Err
     let file = File::open(path).expect("Failed to open file");
     let reader = BufReader::new(file);
 
-    // Deserialize JSON to the intermediate struct (MerkleProof)
-    let proof: MerkleProof = serde_json::from_reader(reader)?;
+    // Deserialize JSON to the intermediate struct (MerkleProofFromFile)
+    let proof: MerkleProofFromFile = serde_json::from_reader(reader)?;
+
+    let proof = MerkleProof {
+        root: proof.root,
+        key: proof.key,
+        value: proof.value,
+        siblings: proof.siblings,
+    };
 
     Ok(proof)
 }
