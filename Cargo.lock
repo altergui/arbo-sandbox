@@ -253,6 +253,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86fdf8605db99b54d3cd748a44c6d04df638eb5dafb219b135d0149bd0db01f6"
 
 [[package]]
+name = "arbo-lib"
+version = "0.1.0"
+dependencies = [
+ "alloy-sol-types",
+ "num-bigint 0.4.6",
+ "serde",
+]
+
+[[package]]
 name = "arbo-sandbox"
 version = "0.1.0"
 dependencies = [
@@ -271,9 +280,13 @@ dependencies = [
 name = "arbo-script"
 version = "0.1.0"
 dependencies = [
+ "alloy-sol-types",
+ "arbo-lib",
  "clap",
  "hex",
  "monotree",
+ "num-bigint 0.4.6",
+ "ruint",
  "serde",
  "serde_json",
  "sp1-helper",
@@ -3078,6 +3091,7 @@ checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
 dependencies = [
  "num-integer",
  "num-traits",
+ "serde",
 ]
 
 [[package]]

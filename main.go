@@ -58,6 +58,10 @@ func main() {
 		panic(err)
 	}
 
+	if err := os.WriteFile("merkleproof.json", jCvp, os.ModePerm); err != nil {
+		panic(err)
+	}
+
 	// test vector checked with a circom circuit (arbo/testvectors/circom)
 	if string(jCvp) != `{"fnc":0,"isOld0":"0","key":"2","oldK`+
 		`ey":"0","oldValue":"0","root":"1355816845522055904274785395894906304622`+

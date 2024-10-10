@@ -8,10 +8,11 @@ sp1_zkvm::entrypoint!(main);
 use ark_bn254::Fr as Field; // Use BN254 scalar field
 use ark_ff::{One, PrimeField, Zero}; // For field arithmetic and conversions
 use ark_serialize::CanonicalSerialize; // Import serialization traits
+use num_bigint::BigUint;
 
 // Helper function to convert a string into a Field element
 fn to_field(val: &str) -> Field {
-    let int_val = num_bigint::BigUint::parse_bytes(val.as_bytes(), 10).unwrap(); // Convert string to BigUint
+    let int_val = BigUint::parse_bytes(val.as_bytes(), 10).unwrap(); // Convert string to BigUint
     Field::from_le_bytes_mod_order(&int_val.to_bytes_le()) // Convert BigUint to Field
 }
 
@@ -198,7 +199,7 @@ fn switcher(sel: u8, l: &Field, r: &Field) -> (Field, Field) {
     }
 }
 
-fn field_to_biguint(f: Field) -> num_bigint::BigUint {
+fn field_to_biguint(f: Field) -> BigUint {
     f.into()
 }
 
@@ -278,6 +279,8 @@ fn to_le_bits_254(value: &Field) -> Vec<u8> {
 
 fn main() {
     println!("start");
+    let n = sp1_zkvm::io::read::<u32>();
+
     main1();
     // main2();
     println!("done");

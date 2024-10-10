@@ -10,14 +10,16 @@
 //! RUST_LOG=info cargo run --release -- --prove
 //! ```
 
-use std::{fs::File, io::Write};
-
-// use alloy_sol_types::SolType;
+use alloy_sol_types::SolType;
+use arbo_lib::MerkleProof;
 use clap::Parser;
-// use fibonacci_lib::PublicValuesStruct;
 use hex::ToHex;
+use num_bigint::BigUint;
+use ruint::Uint;
+use serde::{Deserialize, Serialize};
 use sp1_sdk::{ProverClient, SP1Stdin};
 use std::time::Instant;
+use std::{fs::File, io::BufReader, io::Write};
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
 pub const FIBONACCI_ELF: &[u8] = include_bytes!("../../../elf/riscv32im-succinct-zkvm-elf");
@@ -35,11 +37,19 @@ struct Args {
     #[clap(long)]
     verify: bool,
 
-    #[clap(short, default_value = "20")]
-    n: u32,
+    #[clap(short, default_value = "merkleproof.json")]
+    f: String,
+}
 
-    #[clap(long, default_value = "0")]
-    offset: u32,
+fn read_merkleproof_from_file(path: &str) -> Result<MerkleProof, serde_json::Error> {
+    // Open the file in read-only mode
+    let file = File::open(path).expect("Failed to open file");
+    let reader = BufReader::new(file);
+
+    // Deserialize JSON to the intermediate struct (MerkleProof)
+    let proof: MerkleProof = serde_json::from_reader(reader)?;
+
+    Ok(proof)
 }
 
 fn main() {
@@ -57,12 +67,13 @@ fn main() {
     // Setup the prover client.
     let client = ProverClient::new();
 
+    let proof = read_merkleproof_from_file(&args.f).expect("Error reading or deserializing JSON");
+
     // Setup the inputs.
     let mut stdin = SP1Stdin::new();
-    stdin.write(&args.n);
-    stdin.write(&args.offset);
+    stdin.write(&proof);
 
-    println!("n: {}", args.n);
+    println!("passed proof to program stdin: {:?}", proof);
 
     if args.execute {
         // Execute the program
