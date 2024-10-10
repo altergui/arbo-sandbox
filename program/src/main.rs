@@ -111,8 +111,16 @@ fn verify_extended(
         }
     }
 
-    println!("Expected root: {:?}", expected_root);
-    println!("Computed root: {:?}", levels[0]);
+    println!(
+        "Expected root: {:?} {:?}",
+        expected_root,
+        field_to_biguint(*expected_root),
+    );
+    println!(
+        "Computed root: {:?} {:?}",
+        levels[0],
+        field_to_biguint(levels[0]),
+    );
     assert!(expected_root == &levels[0]);
 
     let are_keys_equal = if old_key == key {
@@ -198,21 +206,18 @@ fn switcher(sel: u8, l: &Field, r: &Field) -> (Field, Field) {
     }
 }
 
-fn field_to_vec(a: Field) -> Vec<u8> {
-    let mut a_bytes = Vec::new();
-    CanonicalSerialize::serialize_uncompressed(&a, &mut a_bytes).unwrap();
-    a_bytes
+fn field_to_vec(f: Field) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    // Convert field elements to 32-byte arrays (big-endian representation)
+    CanonicalSerialize::serialize_uncompressed(&f, &mut bytes).unwrap();
+    bytes
 }
 
 // Bitwise AND for Field elements
 fn field_and(a: Field, b: Field) -> Field {
     // Create byte buffers for serialized field elements
-    let mut a_bytes = Vec::new();
-    let mut b_bytes = Vec::new();
-
-    // Convert field elements to 32-byte arrays (big-endian representation)
-    CanonicalSerialize::serialize_uncompressed(&a, &mut a_bytes).unwrap();
-    CanonicalSerialize::serialize_uncompressed(&b, &mut b_bytes).unwrap();
+    let a_bytes = field_to_vec(a);
+    let b_bytes = field_to_vec(b);
 
     let mut c = [0u8; 32]; // Create a 32-byte array to store the result
 
@@ -230,11 +235,17 @@ fn multi_and(arr: &[Field]) -> Field {
     arr.iter().cloned().reduce(|a, b| field_and(a, b)).unwrap()
 }
 
-// Blake3 hash function example
 fn blake3_hash(inputs: &[Field]) -> Field {
     let mut hasher = blake3::Hasher::new();
 
-    hasher.update(&vec_to_fixed_array_32(inputs.to_vec()));
+    // Iterate over each field, serialize it, and pass it to the hasher
+    for field in inputs {
+        let mut serialized_field = Vec::new();
+        CanonicalSerialize::serialize_uncompressed(field, &mut serialized_field).unwrap();
+        hasher.update(&serialized_field); // Vec<u8> gets converted to &[u8] automatically
+    }
+
+    // Finalize the hash and take the first 32 bytes
     let hash = hasher.finalize();
     Field::from_le_bytes_mod_order(&hash.as_bytes()[..32]) // Use only the first 32 bytes (256 bits)
 }
@@ -289,10 +300,21 @@ fn main() {
     println!("done");
 }
 
+fn field_to_biguint(f: Field) -> num_bigint::BigUint {
+    let bi: num_bigint::BigUint = f.into();
+    bi
+}
+
 fn main1() {
     // Example usage with big integers
+    // let root =
+    //     to_field("21135506078746510573119705753579567335835726524098367527812922933644667691006"); // this is the resulting hash using Poseidon
+
     let root =
-        to_field("21135506078746510573119705753579567335835726524098367527812922933644667691006");
+        to_field("10768433685903779808492645729755013812360352060157252115590238143087516437857"); // this is the resulting hash using Blake3
+
+    println!("root: {:?} {}", root, field_to_biguint(root));
+
     let key = to_field("500400244448261235194511589700085192056257072811");
     let value = to_field("10");
     let mut siblings = vec![
