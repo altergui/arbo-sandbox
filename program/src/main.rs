@@ -111,16 +111,8 @@ fn verify_extended(
         }
     }
 
-    println!(
-        "Expected root: {:?} {:?}",
-        expected_root,
-        field_to_biguint(*expected_root),
-    );
-    println!(
-        "Computed root: {:?} {:?}",
-        levels[0],
-        field_to_biguint(levels[0]),
-    );
+    println!("Expected root: {:?}", field_to_biguint(*expected_root));
+    println!("Computed root: {:?}", field_to_biguint(levels[0]));
     assert!(expected_root == &levels[0]);
 
     let are_keys_equal = if old_key == key {
@@ -206,6 +198,10 @@ fn switcher(sel: u8, l: &Field, r: &Field) -> (Field, Field) {
     }
 }
 
+fn field_to_biguint(f: Field) -> num_bigint::BigUint {
+    f.into()
+}
+
 fn field_to_vec(f: Field) -> Vec<u8> {
     let mut bytes = Vec::new();
     // Convert field elements to 32-byte arrays (big-endian representation)
@@ -240,25 +236,12 @@ fn blake3_hash(inputs: &[Field]) -> Field {
 
     // Iterate over each field, serialize it, and pass it to the hasher
     for field in inputs {
-        let mut serialized_field = Vec::new();
-        CanonicalSerialize::serialize_uncompressed(field, &mut serialized_field).unwrap();
-        hasher.update(&serialized_field); // Vec<u8> gets converted to &[u8] automatically
+        hasher.update(&field_to_vec(*field)); // Vec<u8> gets converted to &[u8] automatically
     }
 
     // Finalize the hash and take the first 32 bytes
     let hash = hasher.finalize();
     Field::from_le_bytes_mod_order(&hash.as_bytes()[..32]) // Use only the first 32 bytes (256 bits)
-}
-
-// Convert Vec<u8> to [u8; 32], padding or truncating as needed
-fn vec_to_fixed_array_32(vec: Vec<u8>) -> [u8; 32] {
-    let mut array = [0u8; 32]; // Create a fixed-size array filled with 0s
-
-    // Copy as many bytes as possible from the vector into the array
-    let bytes_to_copy = vec.len().min(32); // Copy up to 32 bytes
-    array[..bytes_to_copy].copy_from_slice(&vec[..bytes_to_copy]);
-
-    array // Return the fixed-size array
 }
 
 // endLeafValue using Blake3 hash
@@ -300,11 +283,6 @@ fn main() {
     println!("done");
 }
 
-fn field_to_biguint(f: Field) -> num_bigint::BigUint {
-    let bi: num_bigint::BigUint = f.into();
-    bi
-}
-
 fn main1() {
     // Example usage with big integers
     // let root =
@@ -312,8 +290,6 @@ fn main1() {
 
     let root =
         to_field("10768433685903779808492645729755013812360352060157252115590238143087516437857"); // this is the resulting hash using Blake3
-
-    println!("root: {:?} {}", root, field_to_biguint(root));
 
     let key = to_field("500400244448261235194511589700085192056257072811");
     let value = to_field("10");
