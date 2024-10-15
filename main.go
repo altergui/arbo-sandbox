@@ -25,33 +25,44 @@ func main() {
 
 	tree, err := arbo.NewTree(arbo.Config{
 		Database: database, MaxLevels: 4,
-		HashFunction: arbo.HashFunctionPoseidon,
+		HashFunction: arbo.HashFunctionBlake3,
 	})
 	if err != nil {
 		panic(err)
 	}
 
 	testVector := [][]int64{
-		{1, 11},
+		// {1, 11},
 		{2, 22},
-		{3, 33},
-		{4, 44},
+		// {3, 33},
+		// {4, 44},
 	}
 	bLen := 1
 	for i := 0; i < len(testVector); i++ {
 		k := arbo.BigIntToBytes(bLen, big.NewInt(testVector[i][0]))
 		v := arbo.BigIntToBytes(bLen, big.NewInt(testVector[i][1]))
+		fmt.Println("Xxxxxx")
+
 		if err := tree.Add(k, v); err != nil {
 			panic(err)
 		}
+		r, _ := tree.Root()
+		fmt.Printf("root: %x\n", r)
 	}
 
+	fmt.Println("Xxxxxx")
 	// proof of existence (fnc = 0: inclusion, 1: non inclusion)
 	k := arbo.BigIntToBytes(bLen, big.NewInt(int64(2)))
 	cvp, err := tree.GenerateCircomVerifierProof(k)
 	if err != nil {
 		panic(err)
 	}
+
+	// hash, err := arbo.HashBlake3.Hash(arbo.HashFunctionBlake3, []byte{0x01})
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Printf("hash %x\n", hash)
 
 	jCvp, err := json.Marshal(cvp)
 	if err != nil {

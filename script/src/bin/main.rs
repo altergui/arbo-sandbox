@@ -10,12 +10,10 @@
 //! RUST_LOG=info cargo run --release -- --prove
 //! ```
 
-use alloy_sol_types::SolType;
+// use alloy_sol_types::SolType;
 use arbo_lib::{MerkleProof, MerkleProofFromFile};
 use clap::Parser;
 use hex::ToHex;
-use num_bigint::BigUint;
-use ruint::Uint;
 use sp1_sdk::{ProverClient, SP1Stdin};
 use std::time::Instant;
 use std::{fs::File, io::BufReader, io::Write};

@@ -7,25 +7,25 @@ sp1_zkvm::entrypoint!(main);
 
 use arbo_lib::MerkleProof;
 use ark_bn254::Fr as Field; // Use BN254 scalar field
-use ark_ff::{One, PrimeField, Zero}; // For field arithmetic and conversions
+use ark_ff::{biginteger::BigInteger64, BigInt, One, PrimeField, Zero}; // For field arithmetic and conversions
 use ark_serialize::CanonicalSerialize; // Import serialization traits
 use num_bigint::BigUint;
 
 // Helper function to convert a string into a Field element
 fn string_to_field(val: &str) -> Field {
     let int_val = BigUint::parse_bytes(val.as_bytes(), 10).unwrap(); // Convert string to BigUint
-    Field::from_le_bytes_mod_order(&int_val.to_bytes_le()) // Convert BigUint to Field
+    Field::from_be_bytes_mod_order(&int_val.to_bytes_be()) // Convert BigUint to Field
 }
 
 // Helper function to convert a bigint into a Field element
 fn biguint_to_field(val: BigUint) -> Field {
-    Field::from_le_bytes_mod_order(&val.to_bytes_le()) // Convert BigUint to Field
+    Field::from_be_bytes_mod_order(&val.to_bytes_be()) // Convert BigUint to Field
 }
 // Helper function to convert a bigint into a Field element
 fn vec_biguint_to_field(vals: Vec<BigUint>) -> Vec<Field> {
     let mut vf = Vec::new();
     for val in vals {
-        vf.push(Field::from_le_bytes_mod_order(&val.to_bytes_le())) // Convert BigUint to Field
+        vf.push(Field::from_be_bytes_mod_order(&val.to_bytes_be())) // Convert BigUint to Field
     }
     vf
 }
@@ -58,7 +58,7 @@ fn verify_extended(
     let n_levels = siblings.len();
     let hash1_old = end_leaf_value(*old_key, *old_value);
     let hash1_new = end_leaf_value(*key, *value);
-    let n2b_new = to_le_bits_254(key);
+    let n2b_new = field_to_biguint(*key);
 
     let lev_ins = level_ins(&siblings, enabled.is_one());
 
@@ -118,7 +118,7 @@ fn verify_extended(
             &siblings[i],
             &hash1_old,
             &hash1_new,
-            n2b_new[i],
+            n2b_new.bit(i.try_into().unwrap()),
             &child,
         );
         if i > 0 {
@@ -127,7 +127,9 @@ fn verify_extended(
     }
 
     println!("Expected root: {:?}", field_to_biguint(*expected_root));
+    println!("Expected root(hex): {:x}", field_to_biguint(*expected_root));
     println!("Computed root: {:?}", field_to_biguint(levels[0]));
+    println!("Computed root(hex): {:x}", field_to_biguint(levels[0]));
     assert!(expected_root == &levels[0]);
 
     let are_keys_equal = if old_key == key {
@@ -198,15 +200,15 @@ fn level_verifier(
     sibling: &Field,
     old1leaf: &Field,
     new1leaf: &Field,
-    lrbit: u8,
+    lrbit: bool,
     child: &Field,
 ) -> Field {
     let (l, r) = switcher(lrbit, child, sibling);
     (intermediate_leaf_value(l, r) * st_top) + (old1leaf * st_iold) + (new1leaf * st_inew)
 }
 
-fn switcher(sel: u8, l: &Field, r: &Field) -> (Field, Field) {
-    if sel == 0 {
+fn switcher(sel: bool, l: &Field, r: &Field) -> (Field, Field) {
+    if sel {
         (l.clone(), r.clone())
     } else {
         (r.clone(), l.clone())
@@ -217,28 +219,25 @@ fn field_to_biguint(f: Field) -> BigUint {
     f.into()
 }
 
-fn field_to_vec(f: Field) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    // Convert field elements to 32-byte arrays (big-endian representation)
-    CanonicalSerialize::serialize_uncompressed(&f, &mut bytes).unwrap();
-    bytes
+fn field_to_bytes_be(f: Field) -> Vec<u8> {
+    field_to_biguint(f).to_bytes_be()
 }
 
 // Bitwise AND for Field elements
 fn field_and(a: Field, b: Field) -> Field {
-    // Create byte buffers for serialized field elements
-    let a_bytes = field_to_vec(a);
-    let b_bytes = field_to_vec(b);
+    // Create byte buffers
+    let a_bytes = field_to_bytes_be(a);
+    let b_bytes = field_to_bytes_be(b);
 
     let mut c = [0u8; 32]; // Create a 32-byte array to store the result
-
+    println!("len {}", a_bytes.len());
     // Perform byte-wise AND between a_bytes and b_bytes
     for i in 0..32 {
         c[i] = a_bytes[i] & b_bytes[i];
     }
 
     // Convert the resulting byte array back into a field element
-    Field::from_le_bytes_mod_order(&c)
+    Field::from_be_bytes_mod_order(&c)
 }
 
 // Perform bitwise AND over an array of Field elements
@@ -251,17 +250,39 @@ fn blake3_hash(inputs: &[Field]) -> Field {
 
     // Iterate over each field, serialize it, and pass it to the hasher
     for field in inputs {
-        hasher.update(&field_to_vec(*field)); // Vec<u8> gets converted to &[u8] automatically
+        println!("input {:?}", &field_to_biguint(*field).to_string());
+        println!("input(hex) {:x}", &field_to_biguint(*field));
+        hasher.update(&field_to_biguint(*field).to_bytes_be()); // Vec<u8> gets converted to &[u8] automatically
     }
 
     // Finalize the hash and take the first 32 bytes
     let hash = hasher.finalize();
-    Field::from_le_bytes_mod_order(&hash.as_bytes()[..32]) // Use only the first 32 bytes (256 bits)
+    println!("hash {:?}", &hash.to_hex());
+    println!("hash(bytes) {:?}", &hash.as_bytes());
+    println!(
+        "hash(base10BE) {}",
+        field_to_biguint(Field::from_be_bytes_mod_order(hash.as_bytes()))
+    );
+    println!(
+        "hash(base10LE) {:?}",
+        field_to_biguint(Field::from_le_bytes_mod_order(hash.as_bytes()))
+    );
+    let mut b = hash.as_bytes().to_vec();
+    b.reverse();
+    println!(
+        "hash(base10BErev) {:?}",
+        field_to_biguint(Field::from_be_bytes_mod_order(&b))
+    );
+    println!(
+        "hash(base10LErev) {:?}",
+        field_to_biguint(Field::from_le_bytes_mod_order(&b))
+    );
+    Field::from_be_bytes_mod_order(hash.as_bytes())
 }
 
 // endLeafValue using Blake3 hash
 pub(crate) fn end_leaf_value(k: Field, v: Field) -> Field {
-    blake3_hash(&[k, v, Field::from(1u64)]) // Hash key, value, and 1
+    blake3_hash(&[k, v, Field::one()]) // Hash key, value, and 1
 }
 
 // intermediateLeafValue using Blake3 hash
@@ -269,32 +290,42 @@ pub(crate) fn intermediate_leaf_value(l: Field, r: Field) -> Field {
     blake3_hash(&[l, r]) // Hash left and right children
 }
 
-// Function to get the least significant 254 bits of a Field element
-fn to_le_bits_254(value: &Field) -> Vec<u8> {
-    let mut serialized_bytes = Vec::new();
-
-    // Serialize the field element into the byte vector
-    value.serialize_uncompressed(&mut serialized_bytes).unwrap();
-
-    // Take the first 254 bits (32 bytes = 256 bits, so we trim the last 2 bits)
-    let mut bits = Vec::new();
-    for byte in serialized_bytes.iter().take(32) {
-        // We take the first 32 bytes
-        for bit_index in 0..8 {
-            let bit = (byte >> bit_index) & 1; // Extract each bit
-            bits.push(bit);
-        }
-    }
-
-    // Return the first 254 bits
-    bits.truncate(254);
-    bits
-}
-
 fn main() {
     println!("start");
     let proof = sp1_zkvm::io::read::<MerkleProof>();
 
+    // test_blake3_hash();
+    // // let hash: '
+    // println!("hash {:?}", &hash.to_hex());
+    // println!("hash(bytes) {:?}", &hash.as_bytes());
+    // println!(
+    //     "hash(base10) {:?}",
+    //     field_to_biguint(Field::from_be_bytes_mod_order(hash.as_bytes()))
+    // );
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(&[1u8]); // Vec<u8> gets converted to &[u8] automatically
+
+    let hash = hasher.finalize();
+    let bytes = hash.as_bytes();
+
+    let bytes = &[20u8, 20u8, 20u8, 20u8, 20u8, 20u8, 20u8, 20u8, 20u8, 20u8];
+    // Direct conversion to BigUint
+    let biguint_direct = BigUint::from_bytes_be(bytes);
+
+    // Field-based conversion
+    let field_element = Field::from_be_bytes_mod_order(bytes);
+    let biguint_from_field = field_to_biguint(field_element);
+
+    println!("BigUint (direct): {}", biguint_direct);
+    println!("BigUint ( field): {}", biguint_from_field);
+
+    println!(
+        "field from bigint: {:?}",
+        Field::from_bigint(biguint_direct.into::<ark_ff::BigInt>())
+    );
+    panic!("end");
+    let m = BigUint::from(5_u32);
+    println!("{} {} {}", m.bit(0), m.bit(1), m.bit(2));
     verify(
         &biguint_to_field(proof.root),
         &biguint_to_field(proof.key),
@@ -303,6 +334,17 @@ fn main() {
     );
 
     println!("done");
+}
+
+fn test_blake3_hash() {
+    let mut hasher = blake3::Hasher::new();
+
+    hasher.update(&[{ 0x01u8 }]); //
+
+    // Finalize the hash and take the first 32 bytes
+    let hash = hasher.finalize();
+    println!("hash {:?}", &hash.as_bytes()[..32]); // Use only the first 32 bytes (256 bits)
+    println!("hash {:?}", &hash.to_hex()[..32]); // Use only the first 32 bytes (256 bits)
 }
 
 fn _hardcoded_blake3_test1() {
