@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"slices"
 
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
@@ -32,10 +33,10 @@ func main() {
 	}
 
 	testVector := [][]int64{
-		// {1, 11},
+		{1, 11},
 		{2, 22},
-		// {3, 33},
-		// {4, 44},
+		{3, 33},
+		{4, 44},
 	}
 	bLen := 1
 	for i := 0; i < len(testVector); i++ {
@@ -72,6 +73,22 @@ func main() {
 	if err := os.WriteFile("merkleproof.json", jCvp, os.ModePerm); err != nil {
 		panic(err)
 	}
+	for i, s := range cvp.Siblings {
+		if slices.Equal(s, []byte{0x00}) {
+			cvp.Siblings[i] = make([]byte, arbo.HashFunctionBlake3.Len())
+		}
+		fmt.Printf("%d: %x\n", i, s)
+	}
+	packedSiblings, err := arbo.PackSiblings(arbo.HashFunctionBlake3, cvp.Siblings)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%x\n", packedSiblings)
+	valid, err := arbo.CheckProof(arbo.HashFunctionBlake3, cvp.Key, cvp.Value, cvp.Root, packedSiblings)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(valid)
 
 	// test vector checked with a circom circuit (arbo/testvectors/circom)
 	if string(jCvp) != `{"fnc":0,"isOld0":"0","key":"2","oldK`+
