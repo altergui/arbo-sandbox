@@ -6,6 +6,7 @@
 sp1_zkvm::entrypoint!(main);
 
 use arbo_sandbox_lib::MerkleProof;
+use blake3;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
