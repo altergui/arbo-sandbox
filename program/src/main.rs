@@ -5,11 +5,8 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use std::str::FromStr;
-
 use arbo_lib::MerkleProof;
 use num_bigint::BigUint;
-use num_traits::FromPrimitive;
 use num_traits::{One, Zero};
 
 fn verify(expected_root: &BigUint, key: &BigUint, value: &BigUint, siblings: Vec<BigUint>) {
@@ -35,8 +32,11 @@ fn verify_extended(
     key: &BigUint,
     value: &BigUint,
     fnc: &BigUint,
-    siblings: Vec<BigUint>,
+    mut siblings: Vec<BigUint>,
 ) {
+    // Ensure the last sibling is zero
+    siblings.push(BigUint::zero());
+
     let n_levels = siblings.len();
     let hash1_old = end_leaf_value(old_key, old_value);
     let hash1_new = end_leaf_value(key, value);
@@ -96,14 +96,12 @@ fn verify_extended(
         } else {
             BigUint::zero()
         };
-        // let child = levels[i].clone();
-
         let lrbit = if key.bit(i.try_into().unwrap()) {
             1u8
         } else {
             0u8
         };
-        println!("n:{} i:{} child:{}", n, i, child);
+
         levels[i] = level_verifier(
             &st_tops[i],
             &st_inews[i],
@@ -128,6 +126,7 @@ fn verify_extended(
         (levels[0]),
         (levels[0])
     );
+
     assert!(expected_root == &levels[0]);
 
     let are_keys_equal = if old_key == key {
@@ -212,11 +211,11 @@ fn level_verifier(
     (intermediate_leaf_value(l, r) * st_top) + (old1leaf * st_iold) + (new1leaf * st_inew)
 }
 
-fn switcher(lrbit: u8, l: &BigUint, r: &BigUint) -> (BigUint, BigUint) {
+fn switcher<'a>(lrbit: u8, l: &'a BigUint, r: &'a BigUint) -> (&'a BigUint, &'a BigUint) {
     if lrbit == 0 {
-        (l.clone(), r.clone())
+        (l, r)
     } else {
-        (r.clone(), l.clone())
+        (r, l)
     }
 }
 
@@ -225,44 +224,42 @@ fn multi_and(arr: &[BigUint]) -> BigUint {
     arr.iter().cloned().reduce(|a, b| a & b).unwrap()
 }
 
-fn blake3_hash(inputs: &[BigUint]) -> BigUint {
-    let mut hasher = blake3::Hasher::new();
-
-    // Iterate over each field, serialize it, and pass it to the hasher
-    for input in inputs {
-        println!("input {:x} (base10: {:?})", input, input.to_string());
-        hasher.update(&input.to_bytes_be()); // Vec<u8> gets converted to &[u8] automatically
-    }
-
-    // Finalize the hash and take the first 32 bytes
-    let hash = hasher.finalize();
-    println!(
-        "hash {:?} (base10: {})",
-        &hash.to_hex(),
-        BigUint::from_bytes_be(hash.as_bytes())
-    );
-    println!("hash(bytes) {:?}", &hash.as_bytes());
-    println!("");
-    BigUint::from_bytes_be(hash.as_bytes())
-}
-
 // endLeafValue using Blake3 hash
 pub(crate) fn end_leaf_value(k: &BigUint, v: &BigUint) -> BigUint {
-    blake3_hash(&[k.clone(), v.clone(), BigUint::one()]) // Hash key, value, and 1
+    blake3_hash_from_biguints(&[k, v, &BigUint::one()])
 }
 
 // intermediateLeafValue using Blake3 hash
-pub(crate) fn intermediate_leaf_value(l: BigUint, r: BigUint) -> BigUint {
-    blake3_hash(&[l, r]) // Hash left and right children
+pub(crate) fn intermediate_leaf_value(l: &BigUint, r: &BigUint) -> BigUint {
+    blake3_hash_from_biguints(&[l, r])
+}
+
+fn blake3_hash_from_biguints(inputs: &[&BigUint]) -> BigUint {
+    let hash = blake3_hash(&inputs.iter().map(|x| x.to_bytes_be()).collect::<Vec<_>>());
+    BigUint::from_bytes_be(&hash)
+}
+
+fn blake3_hash(inputs: &[Vec<u8>]) -> Vec<u8> {
+    let mut hasher = blake3::Hasher::new();
+
+    // Iterate over each input byte slice and pass it to the hasher
+    for input in inputs {
+        println!("input (hex): {:x}", BigUint::from_bytes_be(input));
+        hasher.update(input); // Pass the byte slice directly to the hasher
+    }
+
+    // Finalize the hash and return the resulting hash as a Vec<u8>
+    let hash = hasher.finalize();
+
+    println!("hash (hex): {:?}", hash.to_hex());
+
+    hash.as_bytes().to_vec()
 }
 
 fn main() {
     println!("start");
 
-    let mut proof = sp1_zkvm::io::read::<MerkleProof>();
-
-    // Ensure the last sibling is zero
-    proof.siblings.push(BigUint::zero());
+    let proof = sp1_zkvm::io::read::<MerkleProof>();
 
     verify(&(proof.root), &(proof.key), &(proof.value), proof.siblings);
 
