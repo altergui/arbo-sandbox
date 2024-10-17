@@ -5,7 +5,7 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use arbo_lib::MerkleProof;
+use arbo_sandbox_lib::MerkleProof;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 

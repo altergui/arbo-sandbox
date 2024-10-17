@@ -59,12 +59,6 @@ func main() {
 		panic(err)
 	}
 
-	// hash, err := arbo.HashBlake3.Hash(arbo.HashFunctionBlake3, []byte{0x01})
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fmt.Printf("hash %x\n", hash)
-
 	jCvp, err := json.Marshal(cvp)
 	if err != nil {
 		panic(err)
@@ -73,6 +67,7 @@ func main() {
 	if err := os.WriteFile("merkleproof.json", jCvp, os.ModePerm); err != nil {
 		panic(err)
 	}
+
 	for i, s := range cvp.Siblings {
 		if slices.Equal(s, []byte{0x00}) {
 			cvp.Siblings[i] = make([]byte, arbo.HashFunctionBlake3.Len())

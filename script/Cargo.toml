@@ -1,6 +1,6 @@
 [package]
 version = "0.1.0"
-name = "arbo-script"
+name = "arbo-sandbox-script"
 edition = "2021"
 default-run = "arbo"
 
@@ -20,8 +20,7 @@ clap = { version = "4.0", features = ["derive", "env"] }
 tracing = "0.1.40"
 hex = "0.4.3"
 alloy-sol-types = { workspace = true }
-arbo-lib = { path = "../lib" }
-monotree = "0.1.5"
+arbo-sandbox-lib = { path = "../lib" }
 num-bigint = { version = "0.4.6", features = ["serde"] }
 ruint = "1.12.3"
 

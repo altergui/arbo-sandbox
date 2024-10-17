@@ -11,7 +11,7 @@
 //! ```
 
 // use alloy_sol_types::SolType;
-use arbo_lib::{MerkleProof, MerkleProofFromFile};
+use arbo_sandbox_lib::{MerkleProof, MerkleProofFromFile};
 use clap::Parser;
 use hex::ToHex;
 use sp1_sdk::{ProverClient, SP1Stdin};
