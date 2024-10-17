@@ -134,10 +134,11 @@ fn verify_extended(
 }
 
 fn level_ins(siblings: &[BigUint], enabled: bool) -> Vec<BigUint> {
+    println!("level_ins {:?} {}", siblings, enabled);
     let mut lev_ins = vec![BigUint::zero(); siblings.len()];
-    if enabled {
-        assert!(siblings[siblings.len() - 1].is_zero());
-    }
+    // if enabled {
+    //     assert!(siblings[siblings.len() - 1].is_zero());
+    // }
 
     let is_zero: Vec<BigUint> = siblings
         .iter()

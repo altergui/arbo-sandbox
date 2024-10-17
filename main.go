@@ -25,7 +25,7 @@ func main() {
 	}
 
 	tree, err := arbo.NewTree(arbo.Config{
-		Database: database, MaxLevels: 4,
+		Database: database, MaxLevels: 2,
 		HashFunction: arbo.HashFunctionBlake3,
 	})
 	if err != nil {
