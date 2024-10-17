@@ -40,7 +40,6 @@ fn verify_extended(
     let n_levels = siblings.len();
     let hash1_old = end_leaf_value(old_key, old_value);
     let hash1_new = end_leaf_value(key, value);
-    let n2b_new = key.clone();
 
     let lev_ins = level_ins(&siblings, enabled.is_one());
 
@@ -92,13 +91,18 @@ fn verify_extended(
     let mut levels = vec![BigUint::zero(); siblings.len()];
     let mut i = n_levels - 1;
     for n in 0..n_levels {
-        // let child = if n != 0 {
-        //     levels[i + 1].clone()
-        // } else {
-        //     BigUint::zero()
-        // };
-        let child = levels[i].clone();
+        let child = if n != 0 {
+            levels[i + 1].clone()
+        } else {
+            BigUint::zero()
+        };
+        // let child = levels[i].clone();
 
+        let lrbit = if key.bit(i.try_into().unwrap()) {
+            1u8
+        } else {
+            0u8
+        };
         println!("n:{} i:{} child:{}", n, i, child);
         levels[i] = level_verifier(
             &st_tops[i],
@@ -107,7 +111,7 @@ fn verify_extended(
             &siblings[i],
             &hash1_old,
             &hash1_new,
-            n2b_new.bit(i.try_into().unwrap()),
+            lrbit,
             &child,
         );
         if i > 0 {
@@ -144,9 +148,9 @@ fn verify_extended(
 fn level_ins(siblings: &[BigUint], enabled: bool) -> Vec<BigUint> {
     println!("level_ins {:?} {}", siblings, enabled);
     let mut lev_ins = vec![BigUint::zero(); siblings.len()];
-    // if enabled {
-    //     assert!(siblings[siblings.len() - 1].is_zero());
-    // }
+    if enabled {
+        assert!(siblings[siblings.len() - 1].is_zero());
+    }
 
     let is_zero: Vec<BigUint> = siblings
         .iter()
@@ -200,41 +204,25 @@ fn level_verifier(
     sibling: &BigUint,
     old1leaf: &BigUint,
     new1leaf: &BigUint,
-    lrbit: bool,
+    lrbit: u8,
     child: &BigUint,
 ) -> BigUint {
+    println!("level_verifier {} {:x} {:x}", lrbit, child, sibling);
     let (l, r) = switcher(lrbit, child, sibling);
     (intermediate_leaf_value(l, r) * st_top) + (old1leaf * st_iold) + (new1leaf * st_inew)
 }
 
-fn switcher(sel: bool, l: &BigUint, r: &BigUint) -> (BigUint, BigUint) {
-    if sel {
+fn switcher(lrbit: u8, l: &BigUint, r: &BigUint) -> (BigUint, BigUint) {
+    if lrbit == 0 {
         (l.clone(), r.clone())
     } else {
         (r.clone(), l.clone())
     }
 }
 
-// Bitwise AND for BigUint elements
-// TODO: can't we do simply `a&b`?
-fn field_and(a: BigUint, b: BigUint) -> BigUint {
-    // Create byte buffers
-    let a_bytes = a.to_bytes_be();
-    let b_bytes = b.to_bytes_be();
-
-    let mut c = [0u8; 32]; // Create a 32-byte array to store the result
-                           // Perform byte-wise AND between a_bytes and b_bytes
-    for i in 0..32 {
-        c[i] = a_bytes[i] & b_bytes[i];
-    }
-
-    // Convert the resulting byte array back into a biguint
-    BigUint::from_bytes_be(&c)
-}
-
 // Perform bitwise AND over an array of BigUint elements
 fn multi_and(arr: &[BigUint]) -> BigUint {
-    arr.iter().cloned().reduce(|a, b| field_and(a, b)).unwrap()
+    arr.iter().cloned().reduce(|a, b| a & b).unwrap()
 }
 
 fn blake3_hash(inputs: &[BigUint]) -> BigUint {
@@ -254,6 +242,7 @@ fn blake3_hash(inputs: &[BigUint]) -> BigUint {
         BigUint::from_bytes_be(hash.as_bytes())
     );
     println!("hash(bytes) {:?}", &hash.as_bytes());
+    println!("");
     BigUint::from_bytes_be(hash.as_bytes())
 }
 
@@ -269,104 +258,33 @@ pub(crate) fn intermediate_leaf_value(l: BigUint, r: BigUint) -> BigUint {
 
 fn main() {
     println!("start");
-    let proof = sp1_zkvm::io::read::<MerkleProof>();
-    // test_blake3_hash();
-    // // let hash: '
-    // println!("hash {:?}", &hash.to_hex());
-    // println!("hash(bytes) {:?}", &hash.as_bytes());
-    // println!(
-    //     "hash(base10) {:?}",
-    //     field_to_biguint(BigUint::from_be_bytes_mod_order(hash.as_bytes()))
-    // );
+
+    let mut proof = sp1_zkvm::io::read::<MerkleProof>();
+
+    // Ensure the last sibling is zero
+    proof.siblings.push(BigUint::zero());
+
     verify(&(proof.root), &(proof.key), &(proof.value), proof.siblings);
 
     println!("done");
 }
 
-fn test_blake3_hash() {
-    let mut hasher = blake3::Hasher::new();
+fn test_multi_and() {
+    let zero = BigUint::zero;
+    let one = BigUint::one;
 
-    hasher.update(&[{ 0x01u8 }]); //
-
-    // Finalize the hash and take the first 32 bytes
-    let hash = hasher.finalize();
-    println!("hash {:?}", &hash.as_bytes()[..32]); // Use only the first 32 bytes (256 bits)
-    println!("hash {:?}", &hash.to_hex()[..32]); // Use only the first 32 bytes (256 bits)
+    assert!(multi_and(&{ [one()] }) == one());
+    assert!(multi_and(&{ [zero()] }) == zero());
+    assert!(multi_and(&{ [one(), one(), zero(), zero(),] }) == zero());
+    assert!(multi_and(&{ [one(), one(), one(), one(),] }) == one());
+    assert!(multi_and(&{ [zero(), zero(), zero(), zero(),] }) == zero());
+    assert!(
+        multi_and(&{
+            [
+                BigUint::from(11u32),
+                BigUint::from(13u32),
+                BigUint::from(1u32),
+            ]
+        }) == BigUint::from(9u32)
+    );
 }
-
-fn _hardcoded_blake3_test1() {
-    // Example usage with big integers
-    // let root =
-    //     to_field("21135506078746510573119705753579567335835726524098367527812922933644667691006"); // this is the resulting hash using Poseidon
-
-    let root = BigUint::from_str(
-        "10768433685903779808492645729755013812360352060157252115590238143087516437857",
-    )
-    .unwrap(); // this is the resulting hash using Blake3
-
-    let key = BigUint::from_str("500400244448261235194511589700085192056257072811").unwrap();
-    let value = BigUint::from_str("10").unwrap();
-    let mut siblings = vec![
-        BigUint::from_str(
-            "13175438946403099127785287940793227584022396513432127658229341995655669945927",
-        )
-        .unwrap(),
-        BigUint::from_str(
-            "8906855681626013805208515602420790146700990181185755277830603493975762067087",
-        )
-        .unwrap(),
-        BigUint::from_str(
-            "9457781280074316365191154663065840032069867769247887694941521931147573919101",
-        )
-        .unwrap(),
-        BigUint::from_str(
-            "3886003602968045687040541715852317767887615077999207197223340281752527813105",
-        )
-        .unwrap(),
-        BigUint::from_str(
-            "5615297718669932502221460377065820025799135258753150375139282337562917282190",
-        )
-        .unwrap(),
-        BigUint::from_str(
-            "8028805327216345358010190706209509799652032446863364094962139617192615346584",
-        )
-        .unwrap(),
-        BigUint::from_str(
-            "572541247728029242828004565014369314635015057986897745288271497923406188177",
-        )
-        .unwrap(),
-        BigUint::from_str(
-            "9738042754594087795123752255236264962836518315799343893748681096434196901468",
-        )
-        .unwrap(),
-    ];
-
-    // Ensure the last sibling is zero
-    siblings.push(BigUint::zero());
-
-    verify(&root, &key, &value, siblings);
-}
-
-// fn _hardcoded_test2() {
-//     // Example usage with big integers
-//     let root = string_to_field(
-//         "13558168455220559042747853958949063046226645447188878859760119761585093422436",
-//     );
-//     let key = string_to_field("2");
-//     let value = string_to_field("22");
-//     let mut siblings = vec![
-//         string_to_field(
-//             "11620130507635441932056895853942898236773847390796721536119314875877874016518",
-//         ),
-//         string_to_field(
-//             "5158240518874928563648144881543092238925265313977134167935552944620041388700",
-//         ),
-//         string_to_field("0"),
-//         string_to_field("0"),
-//     ];
-
-//     // Ensure the last sibling is zero
-//     siblings.push(BigUint::zero());
-
-//     verify(&root, &key, &value, siblings);
-// }
