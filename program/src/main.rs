@@ -92,11 +92,14 @@ fn verify_extended(
     let mut levels = vec![BigUint::zero(); siblings.len()];
     let mut i = n_levels - 1;
     for n in 0..n_levels {
-        let child = if n != 0 {
-            levels[i + 1].clone()
-        } else {
-            BigUint::zero()
-        };
+        // let child = if n != 0 {
+        //     levels[i + 1].clone()
+        // } else {
+        //     BigUint::zero()
+        // };
+        let child = levels[i].clone();
+
+        println!("n:{} i:{} child:{}", n, i, child);
         levels[i] = level_verifier(
             &st_tops[i],
             &st_inews[i],
@@ -112,10 +115,15 @@ fn verify_extended(
         }
     }
 
-    println!("Expected root: {:?}", expected_root);
-    println!("Expected root(hex): {:x}", (*expected_root));
-    println!("Computed root: {:?}", (levels[0]));
-    println!("Computed root(hex): {:x}", (levels[0]));
+    println!(
+        "Expected root: {:x} (base10: {:?})",
+        expected_root, expected_root
+    );
+    println!(
+        "Computed root: {:x} (base10: {:?})",
+        (levels[0]),
+        (levels[0])
+    );
     assert!(expected_root == &levels[0]);
 
     let are_keys_equal = if old_key == key {
@@ -233,17 +241,19 @@ fn blake3_hash(inputs: &[BigUint]) -> BigUint {
     let mut hasher = blake3::Hasher::new();
 
     // Iterate over each field, serialize it, and pass it to the hasher
-    for field in inputs {
-        println!("input {:?}", (*field).to_string());
-        println!("input(hex) {:x}", (*field));
-        hasher.update(&field.to_bytes_be()); // Vec<u8> gets converted to &[u8] automatically
+    for input in inputs {
+        println!("input {:x} (base10: {:?})", input, input.to_string());
+        hasher.update(&input.to_bytes_be()); // Vec<u8> gets converted to &[u8] automatically
     }
 
     // Finalize the hash and take the first 32 bytes
     let hash = hasher.finalize();
-    println!("hash {:?}", &hash.to_hex());
+    println!(
+        "hash {:?} (base10: {})",
+        &hash.to_hex(),
+        BigUint::from_bytes_be(hash.as_bytes())
+    );
     println!("hash(bytes) {:?}", &hash.as_bytes());
-    println!("hash(base10BE) {}", BigUint::from_bytes_be(hash.as_bytes()));
     BigUint::from_bytes_be(hash.as_bytes())
 }
 
@@ -268,8 +278,6 @@ fn main() {
     //     "hash(base10) {:?}",
     //     field_to_biguint(BigUint::from_be_bytes_mod_order(hash.as_bytes()))
     // );
-    let m = BigUint::from(5_u32);
-    println!("{} {} {}", m.bit(0), m.bit(1), m.bit(2));
     verify(&(proof.root), &(proof.key), &(proof.value), proof.siblings);
 
     println!("done");
