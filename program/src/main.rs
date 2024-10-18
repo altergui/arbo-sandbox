@@ -227,17 +227,18 @@ fn multi_and(arr: &[BigUint]) -> BigUint {
 
 // endLeafValue using Blake3 hash
 pub(crate) fn end_leaf_value(k: &BigUint, v: &BigUint) -> BigUint {
-    blake3_hash_from_biguints(&[k, v, &BigUint::one()])
+    blake3_hash_from_le_biguints(&[k, v, &BigUint::one()])
 }
 
 // intermediateLeafValue using Blake3 hash
 pub(crate) fn intermediate_leaf_value(l: &BigUint, r: &BigUint) -> BigUint {
-    blake3_hash_from_biguints(&[l, r])
+    blake3_hash_from_le_biguints(&[l, r])
 }
 
-fn blake3_hash_from_biguints(inputs: &[&BigUint]) -> BigUint {
-    let hash = blake3_hash(&inputs.iter().map(|x| x.to_bytes_be()).collect::<Vec<_>>());
-    BigUint::from_bytes_be(&hash)
+fn blake3_hash_from_le_biguints(inputs: &[&BigUint]) -> BigUint {
+    //
+    let hash = blake3_hash(&inputs.iter().map(|x| x.to_bytes_le()).collect::<Vec<_>>());
+    BigUint::from_bytes_le(&hash)
 }
 
 fn blake3_hash(inputs: &[Vec<u8>]) -> Vec<u8> {
