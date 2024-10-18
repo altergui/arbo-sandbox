@@ -2,9 +2,7 @@ module arbosandbox
 
 go 1.23.0
 
-require go.vocdoni.io/dvote v1.10.1
-
-replace go.vocdoni.io/dvote => ../vocdoni-node
+require go.vocdoni.io/dvote v1.10.2-0.20241017124639-d969541c12fa
 
 require (
 	github.com/DataDog/zstd v1.5.2 // indirect
