@@ -8,4 +8,4 @@ num-bigint = { version = "0.4.6", features = ["serde"] }
 num-traits = "0.2.19"
 sp1-zkvm = "2.0.0"
 blake3 = "1.5.4"
-arbo-sandbox-lib = { path = "../lib" }
+smtverifier = { path = "../lib" }

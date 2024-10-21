@@ -1,9 +1,15 @@
 [package]
-name = "arbo-sandbox-lib"
+name = "smtverifier"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 alloy-sol-types.workspace = true
 num-bigint = "0.4.6"
+num-traits = "0.2.19"
 serde = "1.0.210"
+blake3 = "1.5.4"
+
+[dev-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+num-bigint =  { version = "0.4.6", features = ["serde"] }

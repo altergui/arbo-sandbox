@@ -11,9 +11,9 @@
 //! ```
 
 // use alloy_sol_types::SolType;
-use arbo_sandbox_lib::{MerkleProof, MerkleProofFromFile};
 use clap::Parser;
 use hex::ToHex;
+use smtverifier::{MerkleProof, MerkleProofFromFile};
 use sp1_sdk::{ProverClient, SP1Stdin};
 use std::time::Instant;
 use std::{fs::File, io::BufReader, io::Write};

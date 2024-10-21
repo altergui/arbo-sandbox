@@ -1,7 +1,10 @@
 use alloy_sol_types::sol;
 use num_bigint::BigUint;
+use num_traits::{One, Zero};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
+
+pub mod smtverifier;
 
 sol! {
     /// Sub-struct for Merkle proof details
@@ -54,4 +57,18 @@ where
         .into_iter()
         .map(|s| BigUint::from_str(&s).map_err(serde::de::Error::custom))
         .collect()
+}
+
+pub fn verify(expected_root: &BigUint, key: &BigUint, value: &BigUint, siblings: Vec<BigUint>) {
+    smtverifier::verify_extended(
+        &BigUint::one(),
+        expected_root,
+        &BigUint::zero(),
+        &BigUint::zero(),
+        &BigUint::zero(),
+        key,
+        value,
+        &BigUint::zero(),
+        siblings,
+    );
 }
