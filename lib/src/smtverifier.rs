@@ -2,6 +2,32 @@ use blake3;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
+fn siblings_biguints_to_bytes(siblings: Vec<BigUint>) -> Vec<Vec<u8>> {
+    let hash_len = ((siblings.len() - 1) + 7) / 8; // Calculate the ceil value of (n_levels-1)/8
+
+    println!("{} {}", siblings.len(), hash_len); // debug
+
+    let to_bytes = |i: &BigUint| -> Vec<u8> {
+        let mut b = i.to_bytes_le();
+        b.resize(hash_len, 0u8);
+        b
+    };
+
+    let mut siblings: Vec<Vec<u8>> = siblings
+        .into_iter()
+        .map(|biguint| to_bytes(&biguint))
+        .collect();
+
+    for sibling in siblings.iter_mut() {
+        // if the sibling is empty or zero, pad with zeroes
+        if sibling.is_empty() || sibling.iter().all(|&byte| byte == 0) {
+            *sibling = vec![0u8; hash_len];
+        }
+    }
+
+    siblings
+}
+
 pub(crate) fn verify_extended(
     enabled: &BigUint,
     expected_root: &BigUint,
@@ -13,24 +39,21 @@ pub(crate) fn verify_extended(
     fnc: &BigUint,
     siblings_biguint: Vec<BigUint>,
 ) {
-    let mut siblings: Vec<Vec<u8>> = siblings_biguint
-        .into_iter()
-        .map(|biguint| biguint.to_bytes_le())
-        .collect();
+    let mut siblings = siblings_biguints_to_bytes(siblings_biguint);
+    let required_len = ((siblings.len() - 1) + 7) / 8; // Calculate the ceil value of (n_levels-1)/8
 
-    for sibling in siblings.iter_mut() {
-        // Check if the sibling is all zeroes or empty, then replace it
-        if sibling.is_empty() || sibling.iter().all(|&byte| byte == 0) {
-            *sibling = vec![0u8; 32]; // Replace with 32 zero bytes
-        }
-    }
+    let to_bytes = |i: &BigUint| -> Vec<u8> {
+        let mut b = i.to_bytes_le();
+        b.resize(required_len, 0u8);
+        b
+    };
 
     // Ensure the last sibling is zero
     siblings.push(vec![0u8; 32]);
 
     let n_levels = siblings.len();
-    let hash1_old = end_leaf_hash(&old_key.to_bytes_le(), &old_value.to_bytes_le());
-    let hash1_new = end_leaf_hash(&key.to_bytes_le(), &value.to_bytes_le());
+    let hash1_old = end_leaf_hash(&to_bytes(old_key), &to_bytes(old_value));
+    let hash1_new = end_leaf_hash(&to_bytes(key), &to_bytes(value));
 
     let lev_ins = level_ins(&siblings, enabled.is_one());
 

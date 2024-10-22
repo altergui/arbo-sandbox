@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/binary"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -51,18 +50,20 @@ func main() {
 		panic(err)
 	}
 
+	keyLen := 32
+	maxLevels := keyLen * 8
 	tree, err := arbo.NewTree(arbo.Config{
-		Database: database, MaxLevels: 256,
+		Database: database, MaxLevels: maxLevels,
 		HashFunction: arbo.HashFunctionBlake3,
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	processID := RandomBytes(32)
-	censusRoot := RandomBytes(32)
+	processID := RandomBytes(keyLen)
+	censusRoot := RandomBytes(keyLen)
 	ballotMode := []byte("1234")
-	encryptionKey := RandomBytes(32)
+	encryptionKey := RandomBytes(keyLen)
 	resultsAdd := Results{Votes: [][]*big.Int{
 		{big.NewInt(10), big.NewInt(5)},
 	}}
@@ -70,31 +71,32 @@ func main() {
 		{big.NewInt(2), big.NewInt(0)},
 	}}
 
-	if err := tree.Add([]byte{0x00}, processID); err != nil {
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x00)), processID); err != nil {
 		panic(err)
 	}
-	if err := tree.Add([]byte{0x01}, censusRoot); err != nil {
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x01)), censusRoot); err != nil {
 		panic(err)
 	}
-	if err := tree.Add([]byte{0x02}, ballotMode); err != nil {
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x02)), ballotMode); err != nil {
 		panic(err)
 	}
-	if err := tree.Add([]byte{0x03}, encryptionKey); err != nil {
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x03)), encryptionKey); err != nil {
 		panic(err)
 	}
-	if err := tree.Add([]byte{0x04}, resultsAdd.Bytes()); err != nil {
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x04)), resultsAdd.Bytes()); err != nil {
 		panic(err)
 	}
-	if err := tree.Add([]byte{0x05}, resultsSub.Bytes()); err != nil {
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x05)), resultsSub.Bytes()); err != nil {
 		panic(err)
 	}
 
-	n := 200
-	v := RandomBytes(32)
+	start := 100000
+	n := 3000
+	v := RandomBytes(keyLen)
 	fmt.Printf("value=%x\n", v)
-	for i := 1; i <= n; i++ {
-		k := binary.BigEndian.AppendUint64(nil, uint64(i))
-		if i%(n/10) == 0 {
+	for i := start; i <= start+n; i++ {
+		k := arbo.BigIntToBytesLE(keyLen, big.NewInt(int64(i)))
+		if (i-start)%(n/10) == 0 {
 			fmt.Printf("adding leaves... i=%d, k=%x, v=%x\n", i, k, v)
 		}
 		if err := tree.Add(k, v); err != nil {
@@ -103,7 +105,7 @@ func main() {
 	}
 	fmt.Println(tree.Root())
 
-	cvp, err := tree.GenerateCircomVerifierProof(binary.BigEndian.AppendUint64(nil, uint64(n)))
+	cvp, err := tree.GenerateCircomVerifierProof(arbo.BigIntToBytesLE(keyLen, big.NewInt(int64(start+n))))
 	if err != nil {
 		panic(err)
 	}
