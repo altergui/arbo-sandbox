@@ -9,6 +9,7 @@ num-bigint = "0.4.6"
 num-traits = "0.2.19"
 serde = "1.0.210"
 blake3 = "1.5.4"
+hex = "0.4"
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -4609,6 +4609,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-sol-types",
  "blake3",
+ "hex",
  "num-bigint 0.4.6",
  "num-traits",
  "serde",

@@ -11,14 +11,26 @@ pub(crate) fn verify_extended(
     key: &BigUint,
     value: &BigUint,
     fnc: &BigUint,
-    mut siblings: Vec<BigUint>,
+    siblings_biguint: Vec<BigUint>,
 ) {
+    let mut siblings: Vec<Vec<u8>> = siblings_biguint
+        .into_iter()
+        .map(|biguint| biguint.to_bytes_le())
+        .collect();
+
+    for sibling in siblings.iter_mut() {
+        // Check if the sibling is all zeroes or empty, then replace it
+        if sibling.is_empty() || sibling.iter().all(|&byte| byte == 0) {
+            *sibling = vec![0u8; 32]; // Replace with 32 zero bytes
+        }
+    }
+
     // Ensure the last sibling is zero
-    siblings.push(BigUint::zero());
+    siblings.push(vec![0u8; 32]);
 
     let n_levels = siblings.len();
-    let hash1_old = end_leaf_value(old_key, old_value);
-    let hash1_new = end_leaf_value(key, value);
+    let hash1_old = end_leaf_hash(&old_key.to_bytes_le(), &old_value.to_bytes_le());
+    let hash1_new = end_leaf_hash(&key.to_bytes_le(), &value.to_bytes_le());
 
     let lev_ins = level_ins(&siblings, enabled.is_one());
 
@@ -32,7 +44,7 @@ pub(crate) fn verify_extended(
         let (st_top, st_inew, st_iold, st_i0, st_na) = if i == 0 {
             sm_verifier(
                 is_old_0,
-                &lev_ins[0],
+                lev_ins[0],
                 fnc,
                 enabled,
                 &BigUint::zero(),
@@ -43,7 +55,7 @@ pub(crate) fn verify_extended(
         } else {
             sm_verifier(
                 is_old_0,
-                &lev_ins[i],
+                lev_ins[i],
                 fnc,
                 &st_tops[i - 1],
                 &st_i0s[i - 1],
@@ -71,9 +83,9 @@ pub(crate) fn verify_extended(
     let mut i = n_levels - 1;
     for n in 0..n_levels {
         let child = if n != 0 {
-            levels[i + 1].clone()
+            levels[i + 1].to_bytes_le()
         } else {
-            BigUint::zero()
+            BigUint::zero().to_bytes_le()
         };
         let lrbit = if key.bit(i.try_into().unwrap()) {
             1u8
@@ -123,41 +135,36 @@ pub(crate) fn verify_extended(
     );
 }
 
-fn level_ins(siblings: &[BigUint], enabled: bool) -> Vec<BigUint> {
-    println!("level_ins {:?} {}", siblings, enabled);
-    let mut lev_ins = vec![BigUint::zero(); siblings.len()];
+fn level_ins(siblings: &Vec<Vec<u8>>, enabled: bool) -> Vec<bool> {
+    println!("level_ins {:?} {}", siblings, enabled); // debug
+    let mut lev_ins = vec![false; siblings.len()];
     if enabled {
-        assert!(siblings[siblings.len() - 1].is_zero());
+        assert!(*siblings[siblings.len() - 1] == vec![0u8; 32]);
     }
 
-    let is_zero: Vec<BigUint> = siblings
-        .iter()
-        .map(|i| {
-            if i.is_zero() {
-                BigUint::one()
-            } else {
-                BigUint::zero()
-            }
-        })
-        .collect();
-    let mut is_done = vec![BigUint::zero(); siblings.len()];
+    let is_zero: Vec<bool> = siblings.iter().map(|i| **i == vec![0u8; 32]).collect();
+    println!("is_zero: {:?}", is_zero); // debug
 
-    let last = BigUint::one() - &is_zero[siblings.len() - 2];
-    lev_ins[siblings.len() - 1] = last.clone();
-    is_done[siblings.len() - 2] = last.clone();
+    let mut is_done = vec![false; siblings.len()];
+
+    let last = !is_zero[siblings.len() - 2];
+    lev_ins[siblings.len() - 1] = last;
+    is_done[siblings.len() - 2] = last;
 
     for n in 2..siblings.len() {
         let i = siblings.len() - n;
-        lev_ins[i] = (BigUint::one() - &is_done[i]) * (BigUint::one() - &is_zero[i - 1]);
-        is_done[i - 1] = lev_ins[i].clone() + &is_done[i];
+        lev_ins[i] = !is_done[i] && !is_zero[i - 1];
+        is_done[i - 1] = lev_ins[i] || is_done[i];
     }
-    lev_ins[0] = BigUint::one() - &is_done[0];
+    lev_ins[0] = !is_done[0];
+    println!("lev_ins {:?}", lev_ins); // debug
+
     lev_ins
 }
 
 fn sm_verifier(
     is_0: &BigUint,
-    lev_ins: &BigUint,
+    lev_ins: bool,
     fnc: &BigUint,
     prev_top: &BigUint,
     prev_i0: &BigUint,
@@ -165,7 +172,12 @@ fn sm_verifier(
     prev_inew: &BigUint,
     prev_na: &BigUint,
 ) -> (BigUint, BigUint, BigUint, BigUint, BigUint) {
-    let prev_top_lev_ins = prev_top * lev_ins;
+    let prev_top_lev_ins = prev_top
+        * if lev_ins {
+            BigUint::one()
+        } else {
+            BigUint::zero()
+        };
     let prev_top_lev_ins_fnc = &prev_top_lev_ins * fnc;
     let st_top = prev_top - &prev_top_lev_ins;
     let st_inew = &prev_top_lev_ins - &prev_top_lev_ins_fnc;
@@ -179,18 +191,26 @@ fn level_verifier(
     st_top: &BigUint,
     st_inew: &BigUint,
     st_iold: &BigUint,
-    sibling: &BigUint,
-    old1leaf: &BigUint,
-    new1leaf: &BigUint,
+    sibling: &Vec<u8>,
+    old1leaf: &Vec<u8>,
+    new1leaf: &Vec<u8>,
     lrbit: u8,
-    child: &BigUint,
+    child: &Vec<u8>,
 ) -> BigUint {
-    println!("level_verifier {} {:x} {:x}", lrbit, child, sibling);
-    let (l, r) = switcher(lrbit, child, sibling);
-    (intermediate_leaf_value(l, r) * st_top) + (old1leaf * st_iold) + (new1leaf * st_inew)
+    let (l, r) = switcher(lrbit, &child, &sibling);
+    let hash = intermediate_leaf_hash(l, r);
+    println!(
+        "level_verifier {} {} {}",
+        lrbit,
+        hex::encode(child),
+        hex::encode(sibling)
+    ); // debug
+    (BigUint::from_bytes_le(&hash) * st_top)
+        + (BigUint::from_bytes_le(old1leaf) * st_iold)
+        + (BigUint::from_bytes_le(new1leaf) * st_inew)
 }
 
-fn switcher<'a>(lrbit: u8, l: &'a BigUint, r: &'a BigUint) -> (&'a BigUint, &'a BigUint) {
+fn switcher<'a>(lrbit: u8, l: &'a Vec<u8>, r: &'a Vec<u8>) -> (&'a Vec<u8>, &'a Vec<u8>) {
     if lrbit == 0 {
         (l, r)
     } else {
@@ -204,34 +224,34 @@ fn multi_and(arr: &[BigUint]) -> BigUint {
 }
 
 // intermediate_leaf_value using Blake3 hash
-pub(crate) fn end_leaf_value(k: &BigUint, v: &BigUint) -> BigUint {
-    blake3_hash_from_le_biguints(&[k, v, &BigUint::one()])
+pub(crate) fn end_leaf_hash(k: &Vec<u8>, v: &Vec<u8>) -> Vec<u8> {
+    blake3_hash(&[k, v, &BigUint::one().to_bytes_le()])
 }
 
 // intermediate_leaf_value using Blake3 hash
-pub(crate) fn intermediate_leaf_value(l: &BigUint, r: &BigUint) -> BigUint {
-    blake3_hash_from_le_biguints(&[l, r])
+pub(crate) fn intermediate_leaf_hash(l: &Vec<u8>, r: &Vec<u8>) -> Vec<u8> {
+    blake3_hash(&[l, r])
 }
 
-fn blake3_hash_from_le_biguints(inputs: &[&BigUint]) -> BigUint {
-    // circomlib uses little-endian when converting bigints to bytes
-    let hash = blake3_hash(&inputs.iter().map(|x| x.to_bytes_le()).collect::<Vec<_>>());
-    BigUint::from_bytes_le(&hash)
-}
+// fn blake3_hash_from_le_biguints(inputs: &[&BigUint]) -> BigUint {
+//     // circomlib uses little-endian when converting bigints to bytes
+//     let hash = blake3_hash(&inputs.iter().map(|x| x.to_bytes_le()).collect::<Vec<_>>());
+//     BigUint::from_bytes_le(&hash)
+// }
 
-fn blake3_hash(inputs: &[Vec<u8>]) -> Vec<u8> {
+fn blake3_hash(inputs: &[&Vec<u8>]) -> Vec<u8> {
     let mut hasher = blake3::Hasher::new();
 
     // Iterate over each input byte slice and pass it to the hasher
     for input in inputs {
-        println!("input (hex): {:x}", BigUint::from_bytes_be(input));
+        println!("input (hex): {}", hex::encode(input)); // debug
         hasher.update(input); // Pass the byte slice directly to the hasher
     }
 
     // Finalize the hash and return the resulting hash as a Vec<u8>
     let hash = hasher.finalize();
 
-    println!("hash (hex): {:?}", hash.to_hex());
+    println!("hash (hex): {:?}", hash.to_hex()); // debug
 
     hash.as_bytes().to_vec()
 }
