@@ -12,6 +12,16 @@ fn main() {
 
     let proof = sp1_zkvm::io::read::<MerkleProof>();
 
+    for n in 1..10 {
+        println!("dummy loop {}", n);
+        smtverifier::verify(
+            &(proof.root),
+            &(proof.key),
+            &(proof.value),
+            proof.siblings.clone(),
+        );
+    }
+
     smtverifier::verify(&(proof.root), &(proof.key), &(proof.value), proof.siblings);
 
     println!("done");
