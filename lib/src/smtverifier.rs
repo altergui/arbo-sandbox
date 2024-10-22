@@ -3,13 +3,13 @@ use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
 fn siblings_biguints_to_bytes(siblings: Vec<BigUint>) -> Vec<Vec<u8>> {
-    let hash_len = ((siblings.len() - 1) + 7) / 8; // Calculate the ceil value of (n_levels-1)/8
+    let hash_len = 32; // for BLAKE3
 
     println!("{} {}", siblings.len(), hash_len); // debug
 
     let to_bytes = |i: &BigUint| -> Vec<u8> {
         let mut b = i.to_bytes_le();
-        b.resize(hash_len, 0u8);
+        b.resize(hash_len, 0u8); // pad with zeroes
         b
     };
 
