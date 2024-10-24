@@ -5,6 +5,8 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
+use num_bigint::BigUint;
+use num_traits::FromPrimitive;
 use smtverifier::MerkleProof;
 
 fn main() {

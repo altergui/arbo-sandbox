@@ -1,6 +1,6 @@
 use alloy_sol_types::sol;
 use num_bigint::BigUint;
-use num_traits::{One, Zero};
+use num_traits::Zero;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
 
@@ -61,14 +61,14 @@ where
 
 pub fn verify(expected_root: &BigUint, key: &BigUint, value: &BigUint, siblings: Vec<BigUint>) {
     smtverifier::verify_extended(
-        &BigUint::one(),
+        true,
         expected_root,
         &BigUint::zero(),
         &BigUint::zero(),
-        &BigUint::zero(),
+        false,
         key,
         value,
-        &BigUint::zero(),
+        false,
         siblings,
     );
 }
