@@ -156,21 +156,21 @@ pub(crate) fn verify_extended(
 }
 
 fn level_ins(siblings: &Vec<Vec<u8>>, enabled: bool) -> Vec<bool> {
-    println!(
-        "level_ins {:?} {}",
-        siblings
-            .iter()
-            .map(|x| pretty_hash(x))
-            .collect::<Vec<String>>(),
-        enabled
-    ); // debug
+    // println!(
+    //     "level_ins {:?} {}",
+    //     siblings
+    //         .iter()
+    //         .map(|x| pretty_hash(x))
+    //         .collect::<Vec<String>>(),
+    //     enabled
+    // ); // debug
     let mut lev_ins = vec![false; siblings.len()];
     if enabled {
         assert!(*siblings[siblings.len() - 1] == vec![0u8; 32]);
     }
 
     let is_zero: Vec<bool> = siblings.iter().map(|i| **i == vec![0u8; 32]).collect();
-    println!("is_zero: {:?}", is_zero); // debug
+    // println!("is_zero: {:?}", is_zero); // debug
 
     let mut is_done = vec![false; siblings.len()];
 
@@ -184,7 +184,7 @@ fn level_ins(siblings: &Vec<Vec<u8>>, enabled: bool) -> Vec<bool> {
         is_done[i - 1] = lev_ins[i] || is_done[i];
     }
     lev_ins[0] = !is_done[0];
-    println!("lev_ins {:?}", lev_ins); // debug
+    // println!("lev_ins {:?}", lev_ins); // debug
 
     lev_ins
 }
@@ -206,10 +206,10 @@ fn sm_verifier(
     let st_iold = prev_top_lev_ins_fnc && !is_0;
     let st_i0 = prev_top_lev_ins && is_0;
     let st_na = prev_na || prev_inew || prev_iold || prev_i0;
-    println!(
-        "sm_verifier gave: {} {} {} {} {}",
-        st_top, st_inew, st_iold, st_i0, st_na
-    );
+    // println!(
+    //     "sm_verifier gave: {} {} {} {} {}",
+    //     st_top, st_inew, st_iold, st_i0, st_na
+    // );
     (st_top, st_inew, st_iold, st_i0, st_na)
 }
 
@@ -253,14 +253,14 @@ fn blake3_hash(inputs: &[&Vec<u8>]) -> Vec<u8> {
 
     // Iterate over each input byte slice and pass it to the hasher
     for input in inputs {
-        println!("input (hex): {}", hex::encode(input)); // debug
+        // println!("input (hex): {}", hex::encode(input)); // debug
         hasher.update(input); // Pass the byte slice directly to the hasher
     }
 
     // Finalize the hash and return the resulting hash as a Vec<u8>
     let hash = hasher.finalize();
 
-    println!("hash (hex): {:?}", hash.to_hex()); // debug
+    // println!("hash (hex): {:?}", hash.to_hex()); // debug
 
     hash.as_bytes().to_vec()
 }
