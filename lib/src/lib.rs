@@ -4,6 +4,7 @@ use num_traits::Zero;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
 
+pub mod poseidon;
 pub mod smtverifier;
 
 sol! {
