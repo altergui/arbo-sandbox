@@ -1,4 +1,3 @@
-use crate::poseidon::poseidon_hash;
 use blake3;
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
@@ -235,14 +234,12 @@ fn switcher<'a>(lrbit: u8, l: &'a Vec<u8>, r: &'a Vec<u8>) -> (&'a Vec<u8>, &'a 
 
 // intermediate_leaf_value using Blake3 hash
 pub(crate) fn end_leaf_hash(k: &Vec<u8>, v: &Vec<u8>) -> Vec<u8> {
-    // blake3_hash(&[k, v, &BigUint::one().to_bytes_le()])
-    poseidon_hash(&[k, v, &BigUint::one().to_bytes_le()])
+    blake3_hash(&[k, v, &BigUint::one().to_bytes_le()])
 }
 
 // intermediate_leaf_value using Blake3 hash
 pub(crate) fn intermediate_leaf_hash(l: &Vec<u8>, r: &Vec<u8>) -> Vec<u8> {
-    // blake3_hash(&[l, r])
-    poseidon_hash(&[l, r])
+    blake3_hash(&[l, r])
 }
 
 // fn blake3_hash_from_le_biguints(inputs: &[&BigUint]) -> BigUint {
