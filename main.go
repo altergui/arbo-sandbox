@@ -50,6 +50,106 @@ func main() {
 		panic(err)
 	}
 
+	keyLen := 1
+	maxLevels := keyLen * 8
+	tree, err := arbo.NewTree(arbo.Config{
+		Database: database, MaxLevels: maxLevels,
+		HashFunction: arbo.HashFunctionBlake3,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	processID := []byte("01234567890123456789012345678900")
+	censusRoot := []byte("01234567890123456789012345678901")
+	ballotMode := []byte("1234")
+	encryptionKey := []byte("01234567890123456789012345678902")
+	resultsAdd := Results{Votes: [][]*big.Int{
+		{big.NewInt(10), big.NewInt(5)},
+	}}
+	resultsSub := Results{Votes: [][]*big.Int{
+		{big.NewInt(2), big.NewInt(0)},
+	}}
+
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x00)), processID); err != nil {
+		panic(err)
+	}
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x01)), censusRoot); err != nil {
+		panic(err)
+	}
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x02)), ballotMode); err != nil {
+		panic(err)
+	}
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x03)), encryptionKey); err != nil {
+		panic(err)
+	}
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x04)), resultsAdd.Bytes()); err != nil {
+		panic(err)
+	}
+	if err := tree.Add(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x05)), resultsSub.Bytes()); err != nil {
+		panic(err)
+	}
+
+	root, _ := tree.Root()
+	fmt.Printf("%x\n", root)
+
+	stateVersion := 1
+	for i := int64(0x00); i <= int64(0x05); i++ {
+		cvp, err := tree.GenerateCircomVerifierProof(arbo.BigIntToBytesLE(keyLen, big.NewInt(i)))
+		if err != nil {
+			panic(err)
+		}
+
+		jCvp, err := json.Marshal(cvp)
+		if err != nil {
+			panic(err)
+		}
+		file := fmt.Sprintf("state%dmerkleproof%d.json", stateVersion, i)
+		if err := os.WriteFile(file, jCvp, os.ModePerm); err != nil {
+			panic(err)
+		}
+	}
+
+	stateVersion = 2
+
+	censusRoot[0] = byte(0x02)
+	encryptionKey[0] = byte(0x02)
+
+	if err := tree.Update(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x01)), censusRoot); err != nil {
+		panic(err)
+	}
+	if err := tree.Update(arbo.BigIntToBytesLE(keyLen, big.NewInt(0x03)), encryptionKey); err != nil {
+		panic(err)
+	}
+
+	for i := int64(0x00); i <= int64(0x05); i++ {
+		cvp, err := tree.GenerateCircomVerifierProof(arbo.BigIntToBytesLE(keyLen, big.NewInt(i)))
+		if err != nil {
+			panic(err)
+		}
+
+		jCvp, err := json.Marshal(cvp)
+		if err != nil {
+			panic(err)
+		}
+		file := fmt.Sprintf("state%dmerkleproof%d.json", stateVersion, i)
+		if err := os.WriteFile(file, jCvp, os.ModePerm); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func TestProofWith256Levels() {
+	dir, err := os.MkdirTemp("", "arbosandbox")
+	if err != nil {
+		panic(err)
+	}
+
+	database, err := metadb.New(db.TypePebble, dir)
+	if err != nil {
+		panic(err)
+	}
+
 	keyLen := 32
 	maxLevels := keyLen * 8
 	tree, err := arbo.NewTree(arbo.Config{
