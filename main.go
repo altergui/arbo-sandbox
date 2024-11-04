@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/gob"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
-	"slices"
 
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
@@ -146,61 +144,17 @@ func main() {
 
 	fmt.Printf("root: %x =? %x\n", cvp1[0].Root, cvp2[0].Root)
 
-	rootMap := make(map[string]int)
-	newSiblings := make(map[string]int)
-	for i := int64(0x00); i <= int64(0x05); i++ {
-		fmt.Printf("\n")
-		for k, s := range cvp1[i].Siblings {
-			fmt.Printf("siblings %d/%d: %x =? %x", i, k, s, cvp2[i].Siblings[int64(k)])
-			if !slices.Equal(s, cvp2[i].Siblings[int64(k)]) {
-				fmt.Printf(" <<< diff")
-			}
-			fmt.Printf("\n")
-		}
-		if !slices.Equal(cvp1[i].Value, cvp2[i].Value) {
-			fmt.Printf("value %d: %x != %x <<<<<< diff\n", i, cvp1[i].Value, cvp2[i].Value)
-			hash, err := tree.HashFunction().Hash(cvp2[i].Key, cvp2[i].Value, []byte{1})
-			if err != nil {
-				panic(err)
-			}
-			fmt.Printf("hash %x\n", hash)
+	var old, new []arbo.CircomVerifierProof
 
-			fmt.Printf("\n\nwill CollectProofHashes to go from k(%x)=v(%x) to root(%x)\n",
-				cvp2[i].Key,
-				cvp2[i].Value,
-				cvp2[i].Root,
-			)
-
-			roots, err := cvp2[i].CalculateProofNodes(tree.HashFunction())
-			if err != nil {
-				panic(err)
-			}
-			if !bytes.Equal(cvp2[i].Root, roots[0]) {
-				panic("root doesn't match")
-			}
-
-			for i, r := range roots {
-				rootMap[hex.EncodeToString(r)] = i
-				fmt.Printf("root(%d): %x\n", i, r)
-			}
-
-			for si, s := range cvp2[i].Siblings {
-				if !slices.Equal(cvp1[i].Siblings[si], cvp2[i].Siblings[si]) {
-					newSiblings[hex.EncodeToString(s)] = si + 1
-				}
-			}
-		}
+	for i := int64(0x00); i <= int64(0x03); i++ {
+		old = append(old, *cvp1[i])
+		new = append(new, *cvp2[i])
 	}
 
-	fmt.Println("\n\ni derived all these hashes from the proofs\n", rootMap)
-	fmt.Println("the proofs had these new siblings\n", newSiblings)
-
-	for k, v := range newSiblings {
-		if rootMap[k] != v {
-			fmt.Printf("given this set of proofs, i can't explain why sibling %s (at level %d) changed\n", k, v)
-			return
-		}
+	if err := arbo.CheckProofBatch(arbo.HashFunctionBlake3, old, new); err != nil {
+		panic(err)
 	}
+
 	fmt.Println("set of proofs verified, there were no other changes to the tree")
 }
 
