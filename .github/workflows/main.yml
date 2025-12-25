@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./ci/unit.sh
+
+  integration:
+    needs: unit
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    uses: ./.github/workflows/integration.yml
