@@ -4,6 +4,7 @@ go 1.23.0
 
 require go.vocdoni.io/dvote v1.10.2-0.20241017124639-d969541c12fa
 
+replace  go.vocdoni.io/dvote => ../vocdoni-node
 require (
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
