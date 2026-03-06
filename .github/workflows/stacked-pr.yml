@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   stacked-pr:
-    if: ${{  github.event.pull_request.head.repo.full_name == "blah" }}
+    # if: ${{  github.event.pull_request.head.repo.full_name == "blah" }}
     runs-on: ubuntu-latest
     steps:
       - name: Check stacked PR
